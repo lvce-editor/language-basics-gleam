@@ -1,0 +1,12 @@
+{
+  "id": "builtin.language-basics-gleam",
+  "name": "Language Basics Gleam",
+  "description": "Provides syntax highlighting and bracket matching in Gleam files.",
+  "languages": [
+    {
+      "id": "gleam",
+      "extensions": [".gleam"],
+      "tokenize": "src/tokenizeGleam.js"
+    }
+  ]
+}
