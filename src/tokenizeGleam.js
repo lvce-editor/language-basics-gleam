@@ -58,7 +58,7 @@ const RE_ANYTHING = /^.+/s
 const RE_ANYTHING_UNTIL_CLOSE_BRACE = /^[^\}]+/
 const RE_QUOTE_DOUBLE = /^"/
 const RE_KEYWORD =
-  /^(?:as|break|const|continue|crate|else|enum|extern|false|fn|for|if|impl|in|let|loop|match|mod|move|mut|pub|ref|return|self|static|struct|super|trait|true|type|unsafe|where|while)\b/
+  /^(?:as|break|const|continue|crate|else|enum|extern|False|fn|for|if|impl|in|let|loop|match|mod|move|mut|pub|ref|return|self|static|struct|super|trait|True|type|unsafe|where|while)\b/
 
 const RE_PUNCTUATION = /^[:,;\{\}\[\]\.=\(\)<>\&,;!#\-?\|]/
 const RE_NUMERIC = /^\d+/
@@ -104,8 +104,8 @@ export const tokenizeLine = (line, lineState) => {
           state = State.TopLevelContent
         } else if ((next = part.match(RE_KEYWORD))) {
           switch (next[0]) {
-            case 'true':
-            case 'false':
+            case 'True':
+            case 'False':
               token = TokenType.LanguageConstant
               break
             default:
