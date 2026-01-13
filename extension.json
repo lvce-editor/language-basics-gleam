@@ -5,8 +5,11 @@
   "languages": [
     {
       "id": "gleam",
-      "extensions": [".gleam"],
+      "extensions": [
+        ".gleam"
+      ],
       "tokenize": "src/tokenizeGleam.js"
     }
-  ]
+  ],
+  "repository": "https://github.com/lvce-editor/language-basics-gleam"
 }
