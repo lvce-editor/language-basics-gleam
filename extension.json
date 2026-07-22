@@ -5,9 +5,7 @@
   "languages": [
     {
       "id": "gleam",
-      "extensions": [
-        ".gleam"
-      ],
+      "extensions": [".gleam"],
       "tokenize": "src/tokenizeGleam.js"
     }
   ],
