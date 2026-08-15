@@ -4,12 +4,11 @@
 export const State = {
   TopLevelContent: 1,
   InsideDoubleQuoteString: 2,
-  InsideLineComment: 3,
-  InsideBlockComment: 10,
 }
 
 export const StateMap = {
   [State.TopLevelContent]: 'TopLevelContent',
+  [State.InsideDoubleQuoteString]: 'InsideDoubleQuoteString',
 }
 
 /**
@@ -18,185 +17,150 @@ export const StateMap = {
 export const TokenType = {
   None: 1,
   Whitespace: 2,
-  PunctuationString: 3,
+  Punctuation: 3,
   String: 4,
   Keyword: 5,
-  Numeric: 6,
-  Punctuation: 7,
-  VariableName: 8,
-  Comment: 885,
-  Text: 9,
-  LanguageConstant: 10,
+  KeywordControl: 6,
+  KeywordImport: 7,
+  Numeric: 8,
+  VariableName: 9,
+  FunctionName: 10,
+  Type: 11,
+  LanguageConstant: 12,
+  Comment: 13,
+  AttributeName: 14,
+  Text: 15,
 }
 
 export const TokenMap = {
   [TokenType.None]: 'None',
   [TokenType.Whitespace]: 'Whitespace',
-  [TokenType.PunctuationString]: 'PunctuationString',
+  [TokenType.Punctuation]: 'Punctuation',
   [TokenType.String]: 'String',
   [TokenType.Keyword]: 'Keyword',
+  [TokenType.KeywordControl]: 'KeywordControl',
+  [TokenType.KeywordImport]: 'KeywordImport',
   [TokenType.Numeric]: 'Numeric',
-  [TokenType.Punctuation]: 'Punctuation',
   [TokenType.VariableName]: 'VariableName',
-  [TokenType.Comment]: 'Comment',
-  [TokenType.Text]: 'Text',
-
+  [TokenType.FunctionName]: 'Function',
+  [TokenType.Type]: 'Type',
   [TokenType.LanguageConstant]: 'LanguageConstant',
+  [TokenType.Comment]: 'Comment',
+  [TokenType.AttributeName]: 'AttributeName',
+  [TokenType.Text]: 'Text',
 }
 
-const RE_LINE_COMMENT_START = /^\/\//
-const RE_SELECTOR = /^[\.a-zA-Z\d\-\:>]+/
 const RE_WHITESPACE = /^\s+/
-const RE_CURLY_OPEN = /^\{/
-const RE_CURLY_CLOSE = /^\}/
-const RE_PROPERTY_NAME = /^[a-zA-Z\-]+\b/
-const RE_COLON = /^:/
-const RE_PROPERTY_VALUE = /^[^;\}]+/
-const RE_SEMICOLON = /^;/
-const RE_COMMA = /^,/
-const RE_ANYTHING = /^.+/s
-const RE_ANYTHING_UNTIL_CLOSE_BRACE = /^[^\}]+/
-const RE_QUOTE_DOUBLE = /^"/
-const RE_KEYWORD =
-  /^(?:as|break|const|continue|crate|else|enum|extern|False|fn|for|if|impl|in|let|loop|match|mod|move|mut|pub|ref|return|self|static|struct|super|trait|True|type|unsafe|where|while)\b/
-
-const RE_PUNCTUATION = /^[:,;\{\}\[\]\.=\(\)<>\&,;!#\-?\|]/
-const RE_NUMERIC = /^\d+/
-const RE_SLASH = /^\//
-const RE_BLOCK_COMMENT_START = /^\/\*/
-const RE_BLOCK_COMMENT_CONTENT = /^.+?(?=\*\/)/
-const RE_BLOCK_COMMENT_END = /^\*\//
-const RE_ANYTHING_UNTIL_END = /^.+/s
-const RE_QUOTE_SINGLE = /^'/
-const RE_QUOTE_BACKTICK = /^`/
-const RE_STRING_SINGLE_QUOTE_CONTENT = /^[^'\\]+/
-const RE_STRING_DOUBLE_QUOTE_CONTENT = /^[^"\\]+/
-const RE_STRING_ESCAPE = /^\\./
+const RE_LINE_COMMENT = /^\/\/.*/
+const RE_DOUBLE_QUOTE = /^"/
+const RE_STRING_CONTENT = /^[^"\\]+/
+const RE_STRING_ESCAPE = /^\\(?:u\{[\da-fA-F]*\}|.)/
 const RE_BACKSLASH = /^\\/
-const RE_VARIABLE_NAME = /^[a-zA-Z_$][a-zA-Z\d\_]*/
+const RE_LANGUAGE_CONSTANT = /^(?:False|Nil|True)\b/
+const RE_KEYWORD =
+  /^(?:as|assert|auto|case|const|delegate|derive|echo|else|fn|if|implement|import|let|macro|opaque|panic|pub|test|todo|type|use)\b/
+const RE_ATTRIBUTE = /^@[a-z][a-z\d_]*/
+const RE_NUMBER =
+  /^(?:0[xX][\da-fA-F](?:_?[\da-fA-F])*|0[oO][0-7](?:_?[0-7])*|0[bB][01](?:_?[01])*|\d(?:_?\d)*(?:\.\d(?:_?\d)*)?(?:e-?\d(?:_?\d)*)?)/
+const RE_FUNCTION_NAME = /^[a-z_][a-z\d_]*(?=\s*\()/
+const RE_TYPE_NAME = /^[A-Z][a-zA-Z\d_]*/
+const RE_VARIABLE_NAME = /^[a-z_][a-z\d_]*/
+const RE_PUNCTUATION =
+  /^(?:<=\.|>=\.|<\.|>\.|\+\.|-\.|\/\.|\*\.|<-|->|\|>|\.\.|==|!=|<=|>=|&&|\|\||<>|<<|>>|[()[\]{},:#!@.;?~%^&*+\-=|<>\/])/
+const RE_ANY_CHARACTER = /^./u
 
 export const initialLineState = {
   state: State.TopLevelContent,
-  /**
-   * @type {any[]}
-   */
-  tokens: [],
 }
 
 export const hasArrayReturn = true
+
+/**
+ * @param {any} lineStateA
+ * @param {any} lineStateB
+ */
+export const isEqualLineState = (lineStateA, lineStateB) => {
+  return lineStateA.state === lineStateB.state
+}
+
+/**
+ * @param {string} keyword
+ */
+const getKeywordToken = (keyword) => {
+  switch (keyword) {
+    case 'case':
+    case 'else':
+    case 'if':
+      return TokenType.KeywordControl
+    case 'import':
+      return TokenType.KeywordImport
+    default:
+      return TokenType.Keyword
+  }
+}
 
 /**
  * @param {string} line
  * @param {any} lineState
  */
 export const tokenizeLine = (line, lineState) => {
-  let next = null
   let index = 0
-  let tokens = []
-  let token = TokenType.None
   let state = lineState.state
+  const tokens = []
   while (index < line.length) {
     const part = line.slice(index)
+    let next
+    let token
     switch (state) {
       case State.TopLevelContent:
         if ((next = part.match(RE_WHITESPACE))) {
           token = TokenType.Whitespace
-          state = State.TopLevelContent
-        } else if ((next = part.match(RE_KEYWORD))) {
-          switch (next[0]) {
-            case 'True':
-            case 'False':
-              token = TokenType.LanguageConstant
-              break
-            default:
-              token = TokenType.Keyword
-              break
-          }
-          state = State.TopLevelContent
-        } else if ((next = part.match(RE_SLASH))) {
-          if ((next = part.match(RE_BLOCK_COMMENT_START))) {
-            token = TokenType.Comment
-            state = State.InsideBlockComment
-          } else if ((next = part.match(RE_LINE_COMMENT_START))) {
-            token = TokenType.Comment
-            state = State.InsideLineComment
-          } else {
-            next = part.match(RE_SLASH)
-            token = TokenType.Punctuation
-            state = State.TopLevelContent
-          }
-        } else if ((next = part.match(RE_PUNCTUATION))) {
-          token = TokenType.Punctuation
-          state = State.TopLevelContent
-        } else if ((next = part.match(RE_VARIABLE_NAME))) {
-          token = TokenType.VariableName
-          state = State.TopLevelContent
-        } else if ((next = part.match(RE_NUMERIC))) {
-          token = TokenType.Numeric
-          state = State.TopLevelContent
-        } else if ((next = part.match(RE_QUOTE_DOUBLE))) {
+        } else if ((next = part.match(RE_LINE_COMMENT))) {
+          token = TokenType.Comment
+        } else if ((next = part.match(RE_DOUBLE_QUOTE))) {
           token = TokenType.Punctuation
           state = State.InsideDoubleQuoteString
-        } else if ((next = part.match(RE_LINE_COMMENT_START))) {
-          token = TokenType.Comment
-          state = State.InsideLineComment
-        } else if ((next = part.match(RE_ANYTHING))) {
-          console.log({ part })
+        } else if ((next = part.match(RE_LANGUAGE_CONSTANT))) {
+          token = TokenType.LanguageConstant
+        } else if ((next = part.match(RE_KEYWORD))) {
+          token = getKeywordToken(next[0])
+        } else if ((next = part.match(RE_ATTRIBUTE))) {
+          token = TokenType.AttributeName
+        } else if ((next = part.match(RE_NUMBER))) {
+          token = TokenType.Numeric
+        } else if ((next = part.match(RE_FUNCTION_NAME))) {
+          token = TokenType.FunctionName
+        } else if ((next = part.match(RE_TYPE_NAME))) {
+          token = TokenType.Type
+        } else if ((next = part.match(RE_VARIABLE_NAME))) {
+          token = TokenType.VariableName
+        } else if ((next = part.match(RE_PUNCTUATION))) {
+          token = TokenType.Punctuation
+        } else if ((next = part.match(RE_ANY_CHARACTER))) {
           token = TokenType.Text
-          state = State.TopLevelContent
         } else {
-          part //?
-          throw new Error('no')
+          throw new Error('Failed to tokenize Gleam source')
         }
         break
       case State.InsideDoubleQuoteString:
-        if ((next = part.match(RE_QUOTE_DOUBLE))) {
+        if ((next = part.match(RE_DOUBLE_QUOTE))) {
           token = TokenType.Punctuation
           state = State.TopLevelContent
-        } else if ((next = part.match(RE_STRING_DOUBLE_QUOTE_CONTENT))) {
+        } else if ((next = part.match(RE_STRING_CONTENT))) {
           token = TokenType.String
-          state = State.InsideDoubleQuoteString
         } else if ((next = part.match(RE_STRING_ESCAPE))) {
           token = TokenType.String
-          state = State.InsideDoubleQuoteString
         } else if ((next = part.match(RE_BACKSLASH))) {
           token = TokenType.String
-          state = State.InsideDoubleQuoteString
         } else {
-          throw new Error('no')
-        }
-        break
-      case State.InsideLineComment:
-        if ((next = part.match(RE_ANYTHING))) {
-          token = TokenType.Comment
-          state = State.TopLevelContent
-        } else {
-          throw new Error('no')
-        }
-        break
-      case State.InsideBlockComment:
-        if ((next = part.match(RE_BLOCK_COMMENT_END))) {
-          token = TokenType.Comment
-          state = State.TopLevelContent
-        } else if ((next = part.match(RE_BLOCK_COMMENT_CONTENT))) {
-          token = TokenType.Comment
-          state = State.InsideBlockComment
-        } else if ((next = part.match(RE_ANYTHING_UNTIL_END))) {
-          token = TokenType.Comment
-          state = State.InsideBlockComment
-        } else {
-          throw new Error('no')
+          throw new Error('Failed to tokenize Gleam string')
         }
         break
       default:
-        throw new Error('no')
+        throw new Error('Invalid Gleam tokenizer state')
     }
-    const tokenLength = next[0].length
-    index += tokenLength
-    tokens.push(token, tokenLength)
-  }
-  if (state === State.InsideLineComment) {
-    state = State.TopLevelContent
+    index += next[0].length
+    tokens.push(token, next[0].length)
   }
   return {
     state,
